@@ -8,13 +8,13 @@
       <UniqueIdentifier>8bf89ed2-55c9-434f-834f-a5a0968e5dda</UniqueIdentifier>
       <Extensions>bmp;fbx;gif;jpg;jpeg;tga;tiff;tif;png</Extensions>
     </Filter>
-	<Filter Include="Content">
+    <Filter Include="Content">
       <UniqueIdentifier>c0454a91-f1c3-473f-b34e-a8f1ff18f821</UniqueIdentifier>
     </Filter>
     <ClInclude Include="Common\DirectXHelper.h">
       <Filter>Common</Filter>
     </ClInclude>
-	<ClInclude Include="Common\StepTimer.h">
+    <ClInclude Include="Common\StepTimer.h">
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="Common\DeviceResources.h">
@@ -23,7 +23,7 @@
     <ClCompile Include="Common\DeviceResources.cpp">
       <Filter>Common</Filter>
     </ClCompile>
-	<ClInclude Include="Content\Sample3DSceneRenderer.h">
+    <ClInclude Include="Content\Sample3DSceneRenderer.h">
       <Filter>Content</Filter>
     </ClInclude>
     <ClInclude Include="Content\SampleFpsTextRenderer.h">
@@ -32,13 +32,13 @@
     <ClInclude Include="Content\ShaderStructures.h">
       <Filter>Content</Filter>
     </ClInclude>
-	<ClCompile Include="Content\Sample3DSceneRenderer.cpp">
+    <ClCompile Include="Content\Sample3DSceneRenderer.cpp">
       <Filter>Content</Filter>
     </ClCompile>
     <ClCompile Include="Content\SampleFpsTextRenderer.cpp">
       <Filter>Content</Filter>
     </ClCompile>
-	<FxCompile Include="Content\SamplePixelShader.hlsl">
+    <FxCompile Include="Content\SamplePixelShader.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
     <FxCompile Include="Content\SampleVertexShader.hlsl">
@@ -62,5 +62,36 @@
     <Image Include="Assets\Wide310x150Logo.scale-200.png">
       <Filter>Assets</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="App.cpp" />
+    <ClCompile Include="Vergara_B_Graphics_II_projectMain.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="DDSTextureLoader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="App.h" />
+    <ClInclude Include="Vergara_B_Graphics_II_projectMain.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="DDSTextureLoader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\StoreLogo.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Vergara_B_Graphics_II_project_TemporaryKey.pfx" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Star_VertexShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
+    <FxCompile Include="Star_PixelShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -40,9 +40,19 @@ void Vergara_B_Graphics_II_projectMain::CreateWindowSizeDependentResources()
 	m_sceneRenderer->CreateWindowSizeDependentResources();
 }
 
+
+using namespace Windows::UI::Core;
+extern CoreWindow^ gwindow;
 // Updates the application state once per frame.
 void Vergara_B_Graphics_II_projectMain::Update() 
 {
+	if (Windows::UI::Core::CoreVirtualKeyStates::Down == gwindow->GetAsyncKeyState(Windows::System::VirtualKey::Space))
+	{
+		Windows::UI::Input::PointerPoint^ point = Windows::UI::Input::PointerPoint::GetCurrentPoint(1);
+		float X = point->Position.X;
+		float Y = point->Position.Y;
+	}
+
 	// Update scene objects.
 	m_timer.Tick([&]()
 	{
@@ -82,6 +92,18 @@ bool Vergara_B_Graphics_II_projectMain::Render()
 	m_fpsTextRenderer->Render();
 
 	return true;
+}
+
+void Vergara_B_Graphics_II_project::Vergara_B_Graphics_II_projectMain::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
+}
+
+void Vergara_B_Graphics_II_project::Vergara_B_Graphics_II_projectMain::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
+}
+
+void Vergara_B_Graphics_II_project::Vergara_B_Graphics_II_projectMain::OnPointerMoved(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args)
+{
 }
 
 // Notifies renderers that device resources need to be released.

@@ -18,6 +18,14 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 {
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
+
+	static const XMVECTORF32 eye = { 0.0f, 0.0f, -2.5f, 0.0f };
+	static const XMVECTORF32 at = { 0.0f, -0.5f, 0.0f, 0.0f };
+	static const XMVECTORF32 at2 = { 0.0f, 0.0f, -10.0f, 0.0f };
+	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
+	XMStoreFloat4x4(&camera, XMMatrixLookAtRH(eye, at, up));
+	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
+	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at2, up))));
 }
 
 // Initializes view parameters when the window size changes.
@@ -52,18 +60,26 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 
 	XMMATRIX orientationMatrix = XMLoadFloat4x4(&orientation);
 
-	XMStoreFloat4x4(
-		&m_constantBufferData.projection,
-		XMMatrixTranspose(perspectiveMatrix * orientationMatrix)
-		);
+	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+	XMStoreFloat4x4(&m_constantBufferDataStar.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
-	static const XMVECTORF32 eye = { 0.0f, 0.7f, 1.5f, 0.0f };
-	static const XMVECTORF32 at = { 0.0f, -0.1f, 0.0f, 0.0f };
-	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
-
-	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
+	
 }
+
+using namespace Windows::UI::Core;
+extern CoreWindow^ gwindow;
+#include <atomic>
+extern bool mouse_move;
+extern float diffx;
+extern float diffy;
+extern bool w_down;
+extern bool a_down;
+extern bool s_down;
+extern bool d_down;
+extern bool left_click;
+
+extern char buttons[256];
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
 void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
@@ -77,6 +93,52 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 
 		Rotate(radians);
 	}
+
+	XMMATRIX newCamera = XMLoadFloat4x4(&camera);
+	
+	if (buttons['W'])
+	{
+		newCamera.r[3] = newCamera.r[3] + newCamera.r[2] * -timer.GetElapsedSeconds() * 5.0;
+	}
+	
+	if (a_down)
+	{
+		newCamera.r[3] = newCamera.r[3] + newCamera.r[0] * -timer.GetElapsedSeconds() *5.0;
+	}
+	
+	if (s_down)
+	{
+		newCamera.r[3] = newCamera.r[3] + newCamera.r[2] * timer.GetElapsedSeconds() * 5.0;
+	}
+	
+	if (d_down)
+	{
+		newCamera.r[3] = newCamera.r[3] + newCamera.r[0] * timer.GetElapsedSeconds() * 5.0;
+	}
+	
+	Windows::UI::Input::PointerPoint^ point = nullptr;
+	
+	//if(mouse_move)/*This crashes unless a mouse event actually happened*/
+	//point = Windows::UI::Input::PointerPoint::GetCurrentPoint(pointerID);
+	
+	if (mouse_move)
+	{
+		// Updates the application state once per frame.
+		if (left_click)
+		{
+			XMVECTOR pos = newCamera.r[3];
+			newCamera.r[3] = XMLoadFloat4(&XMFLOAT4(0, 0, 0, 1));
+			newCamera = XMMatrixRotationX(-diffy*0.01f) * newCamera * XMMatrixRotationY(-diffx*0.01f);
+			newCamera.r[3] = pos;
+		}
+	}
+	
+	XMStoreFloat4x4(&camera, newCamera);
+	
+	/*Be sure to inverse the camera & Transpose because they don't use pragma pack row major in shaders*/
+	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+	
+	mouse_move = false;/*Reset*/
 }
 
 // Rotate the 3D cube model a set amount of radians.
@@ -84,6 +146,7 @@ void Sample3DSceneRenderer::Rotate(float radians)
 {
 	// Prepare to pass the updated model matrix to the shader
 	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
+	XMStoreFloat4x4(&m_constantBufferDataStar.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
 }
 
 void Sample3DSceneRenderer::StartTracking()
@@ -118,66 +181,59 @@ void Sample3DSceneRenderer::Render()
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
 	// Prepare the constant buffer to send it to the graphics device.
-	context->UpdateSubresource1(
-		m_constantBuffer.Get(),
-		0,
-		NULL,
-		&m_constantBufferData,
-		0,
-		0,
-		0
-		);
+	context->UpdateSubresource1(m_constantBuffer.Get(), 0, NULL, &m_constantBufferData, 0, 0, 0);
 
 	// Each vertex is one instance of the VertexPositionColor struct.
 	UINT stride = sizeof(VertexPositionColor);
 	UINT offset = 0;
-	context->IASetVertexBuffers(
-		0,
-		1,
-		m_vertexBuffer.GetAddressOf(),
-		&stride,
-		&offset
-		);
+	context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
 
-	context->IASetIndexBuffer(
-		m_indexBuffer.Get(),
-		DXGI_FORMAT_R16_UINT, // Each index is one 16-bit unsigned integer (short).
-		0
-		);
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
 
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	context->IASetInputLayout(m_inputLayout.Get());
 
 	// Attach our vertex shader.
-	context->VSSetShader(
-		m_vertexShader.Get(),
-		nullptr,
-		0
-		);
+	context->VSSetShader(m_vertexShader.Get(), nullptr, 0);
 
 	// Send the constant buffer to the graphics device.
-	context->VSSetConstantBuffers1(
-		0,
-		1,
-		m_constantBuffer.GetAddressOf(),
-		nullptr,
-		nullptr
-		);
+	context->VSSetConstantBuffers1(0, 1, m_constantBuffer.GetAddressOf(), nullptr, nullptr);
 
 	// Attach our pixel shader.
-	context->PSSetShader(
-		m_pixelShader.Get(),
-		nullptr,
-		0
-		);
+	context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
 
 	// Draw the objects.
-	context->DrawIndexed(
-		m_indexCount,
-		0,
-		0
-		);
+	//context->DrawIndexed(m_indexCount, 0, 0);
+
+
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferStar.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideStar = sizeof(S_VERTEX);
+	UINT offsetStar = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferStar.GetAddressOf(), &strideStar, &offsetStar);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferStar.Get(), DXGI_FORMAT_R16_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutStar.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderStar.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferStar.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderStar.Get(), nullptr, 0);
+
+	// Draw the objects.
+	context->DrawIndexed(m_indexCountStar, 0, 0);
 }
 
 void Sample3DSceneRenderer::CreateDeviceDependentResources()
@@ -185,6 +241,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	// Load shaders asynchronously.
 	auto loadVSTask = DX::ReadDataAsync(L"SampleVertexShader.cso");
 	auto loadPSTask = DX::ReadDataAsync(L"SamplePixelShader.cso");
+
+	auto loadVSTask2 = DX::ReadDataAsync(L"Star_VertexShader.cso");
+	auto loadPSTask2 = DX::ReadDataAsync(L"Star_PixelShader.cso");
 
 	// After the vertex shader file is loaded, create the shader and input layout.
 	auto createVSTask = loadVSTask.then([this](const std::vector<byte>& fileData) {
@@ -214,6 +273,35 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			);
 	});
 
+	auto createVSTask2 = loadVSTask2.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateVertexShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_vertexShaderStar
+			)
+		);
+
+		static const D3D11_INPUT_ELEMENT_DESC vertexDesc2[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateInputLayout(
+				vertexDesc2,
+				ARRAYSIZE(vertexDesc2),
+				&fileData[0],
+				fileData.size(),
+				&m_inputLayoutStar
+			)
+		);
+	});
+
+
 	// After the pixel shader file is loaded, create the shader and constant buffer.
 	auto createPSTask = loadPSTask.then([this](const std::vector<byte>& fileData) {
 		DX::ThrowIfFailed(
@@ -234,6 +322,27 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 				)
 			);
 	});
+
+	auto createPSTask2 = loadPSTask2.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreatePixelShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_pixelShaderStar
+			)
+		);
+
+		CD3D11_BUFFER_DESC constantBufferDescStar(sizeof(ModelViewProjectionConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&constantBufferDescStar,
+				nullptr,
+				&m_constantBufferStar
+			)
+		);
+	});
+
 
 	// Once both shaders are loaded, create the mesh.
 	auto createCubeTask = (createPSTask && createVSTask).then([this] () {
@@ -306,10 +415,95 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			);
 	});
 
+	auto CreateStarTask = (createPSTask2 && createVSTask2).then([this]() {
+
+		S_VERTEX star[12];
+
+
+		for (int i = 0; i < 12; ++i)
+		{
+			if (i == 0 || i == 11)
+			{
+				star[i].position.x = 0.0f;
+				star[i].position.y = 0.0f;
+
+				if (i == 0)
+					star[i].position.z = -0.2f;
+				else if (i == 11)
+					star[i].position.z = 0.2f;
+				star[i].position.w = 1.0f;
+				star[i].uvs.x = 1.0f;
+				star[i].uvs.y = 1.0f;
+				star[i].uvs.z = 0.0f;
+				star[i].uvs.w = 1.0f;
+			}
+			else
+			{
+				star[i].position.x = cos(XMConvertToRadians(i) * 36);
+				star[i].position.y = sin(XMConvertToRadians(i) * 36);
+				star[i].position.z = 0.0f;
+				star[i].position.w = 1.0f;
+				star[i].uvs.x = 1.0f;
+				star[i].uvs.y = 0.0f;
+				star[i].uvs.z = 0.0f;
+				star[i].uvs.w = 1.0f;
+
+				if (i % 2 == 0)
+				{
+					star[i].position.x = cos(XMConvertToRadians(i) * 36) / 2;
+					star[i].position.y = sin(XMConvertToRadians(i) * 36) / 2;
+				}
+
+			}
+		}
+
+		for (int i = 0; i < 12; ++i)
+		{
+			star[i].normals.x = 0;
+			star[i].normals.y = 1;
+			star[i].normals.z = 0;
+		}
+
+		D3D11_SUBRESOURCE_DATA vertexBufferDataStar = { 0 };
+		vertexBufferDataStar.pSysMem = star;
+		vertexBufferDataStar.SysMemPitch = 0;
+		vertexBufferDataStar.SysMemSlicePitch = 0;
+		CD3D11_BUFFER_DESC vertexBufferDescStar(sizeof(star), D3D11_BIND_VERTEX_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&vertexBufferDescStar,
+				&vertexBufferDataStar,
+				&m_vertexBufferStar
+			)
+		);
+
+		static const unsigned int indices[] = { 2, 1, 0, 3, 2, 0, 4, 3, 0, 5, 4, 0, 6, 5, 0, 7, 6, 0, 8, 7, 0, 9, 8, 0, 10, 9, 0, 1, 10, 2, 1, 11, 11, 2, 3, 11, 3, 4, 11, 4, 5, 11, 5, 6, 11, 6, 7, 11, 7, 8, 11, 8, 9, 11, 9, 10, 11, 10, 1 };
+
+
+		m_indexCountStar = ARRAYSIZE(indices);
+
+		D3D11_SUBRESOURCE_DATA indexBufferDataStar = { 0 };
+		indexBufferDataStar.pSysMem = indices;
+		indexBufferDataStar.SysMemPitch = 0;
+		indexBufferDataStar.SysMemSlicePitch = 0;
+		CD3D11_BUFFER_DESC indexBufferDescStar(sizeof(indices), D3D11_BIND_INDEX_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&indexBufferDescStar,
+				&indexBufferDataStar,
+				&m_indexBufferStar
+			)
+		);
+
+	});
+
 	// Once the cube is loaded, the object is ready to be rendered.
-	createCubeTask.then([this] () {
+	//createCubeTask.then([this]() {m_loadingComplete = true; });
+
+	CreateStarTask.then([this]() {
 		m_loadingComplete = true;
 	});
+
 }
 
 void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
@@ -321,4 +515,11 @@ void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
 	m_constantBuffer.Reset();
 	m_vertexBuffer.Reset();
 	m_indexBuffer.Reset();
+
+	m_inputLayoutStar.Reset();
+	m_vertexBufferStar.Reset();
+	m_indexBufferStar.Reset();
+	m_vertexShaderStar.Reset();
+	m_pixelShaderStar.Reset();
+	m_constantBufferStar.Reset();
 }

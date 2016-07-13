@@ -3,6 +3,17 @@
 #include "..\Common\DeviceResources.h"
 #include "ShaderStructures.h"
 #include "..\Common\StepTimer.h"
+#include <iostream>
+#include <ctime>
+#include <cmath>
+#include <string.h>
+#include "DDSTextureLoader.h"
+#include <DirectXMath.h>
+#include <vector>
+#include <thread>
+
+using namespace std;
+using namespace DirectX;
 
 namespace Vergara_B_Graphics_II_project
 {
@@ -45,6 +56,23 @@ namespace Vergara_B_Graphics_II_project
 		bool	m_loadingComplete;
 		float	m_degreesPerSecond;
 		bool	m_tracking;
+		
+		XMFLOAT4X4 world, camera, projection;
+
+		//STAR
+
+		// Direct3D resources for star geometry.
+		Microsoft::WRL::ComPtr<ID3D11InputLayout>	m_inputLayoutStar;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_vertexBufferStar;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_indexBufferStar;
+		Microsoft::WRL::ComPtr<ID3D11VertexShader>	m_vertexShaderStar;
+		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShaderStar;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBufferStar;
+
+		// System resources for star geometry.
+		ModelViewProjectionConstantBuffer	m_constantBufferDataStar;
+		uint32	m_indexCountStar;
+
 	};
 }
 

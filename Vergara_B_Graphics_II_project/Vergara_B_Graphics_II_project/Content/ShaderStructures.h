@@ -16,4 +16,12 @@ namespace Vergara_B_Graphics_II_project
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT3 color;
 	};
+
+	struct S_VERTEX
+	{
+		DirectX::XMFLOAT4 position;
+		DirectX::XMFLOAT4 uvs;
+		DirectX::XMFLOAT3 normals;
+	};
+
 }

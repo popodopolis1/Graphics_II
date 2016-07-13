@@ -17,6 +17,10 @@ namespace Vergara_B_Graphics_II_project
 		void Update();
 		bool Render();
 
+		void OnPointerPressed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+		void OnPointerReleased(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+		void OnPointerMoved(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args);
+
 		// IDeviceNotify
 		virtual void OnDeviceLost();
 		virtual void OnDeviceRestored();
