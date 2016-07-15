@@ -20,12 +20,11 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	CreateWindowSizeDependentResources();
 
 	static const XMVECTORF32 eye = { 0.0f, 0.0f, -2.5f, 0.0f };
-	static const XMVECTORF32 at = { 0.0f, -0.5f, 0.0f, 0.0f };
-	static const XMVECTORF32 at2 = { 0.0f, 0.0f, -10.0f, 0.0f };
+	static const XMVECTORF32 at = { 0.0f, 0.1f, 0.0f, 0.0f };
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
 	XMStoreFloat4x4(&camera, XMMatrixLookAtRH(eye, at, up));
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
-	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at2, up))));
+	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 }
 
 // Initializes view parameters when the window size changes.
@@ -61,6 +60,7 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	XMMATRIX orientationMatrix = XMLoadFloat4x4(&orientation);
 
 	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+
 	XMStoreFloat4x4(&m_constantBufferDataStar.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
@@ -137,7 +137,8 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 	
 	/*Be sure to inverse the camera & Transpose because they don't use pragma pack row major in shaders*/
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
-	
+	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+
 	mouse_move = false;/*Reset*/
 }
 
@@ -217,7 +218,7 @@ void Sample3DSceneRenderer::Render()
 	context->IASetVertexBuffers(0, 1, m_vertexBufferStar.GetAddressOf(), &strideStar, &offsetStar);
 
 	// Each index is one 16-bit unsigned integer (short).
-	context->IASetIndexBuffer(m_indexBufferStar.Get(), DXGI_FORMAT_R16_UINT, 0);
+	context->IASetIndexBuffer(m_indexBufferStar.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -419,7 +420,6 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		S_VERTEX star[12];
 
-
 		for (int i = 0; i < 12; ++i)
 		{
 			if (i == 0 || i == 11)
@@ -434,7 +434,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 				star[i].position.w = 1.0f;
 				star[i].uvs.x = 1.0f;
 				star[i].uvs.y = 1.0f;
-				star[i].uvs.z = 0.0f;
+				star[i].uvs.z = 1.0f;
 				star[i].uvs.w = 1.0f;
 			}
 			else
@@ -443,9 +443,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 				star[i].position.y = sin(XMConvertToRadians(i) * 36);
 				star[i].position.z = 0.0f;
 				star[i].position.w = 1.0f;
-				star[i].uvs.x = 1.0f;
+				star[i].uvs.x = 0.0f;
 				star[i].uvs.y = 0.0f;
-				star[i].uvs.z = 0.0f;
+				star[i].uvs.z = 1.0f;
 				star[i].uvs.w = 1.0f;
 
 				if (i % 2 == 0)
@@ -469,6 +469,12 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		vertexBufferDataStar.SysMemPitch = 0;
 		vertexBufferDataStar.SysMemSlicePitch = 0;
 		CD3D11_BUFFER_DESC vertexBufferDescStar(sizeof(star), D3D11_BIND_VERTEX_BUFFER);
+		vertexBufferDescStar.Usage = D3D11_USAGE_IMMUTABLE;
+		vertexBufferDescStar.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		vertexBufferDescStar.CPUAccessFlags = NULL;
+		vertexBufferDescStar.ByteWidth = sizeof(S_VERTEX) * 12;
+		vertexBufferDescStar.MiscFlags = 0;
+
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreateBuffer(
 				&vertexBufferDescStar,
@@ -477,8 +483,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			)
 		);
 
-		static const unsigned int indices[] = { 2, 1, 0, 3, 2, 0, 4, 3, 0, 5, 4, 0, 6, 5, 0, 7, 6, 0, 8, 7, 0, 9, 8, 0, 10, 9, 0, 1, 10, 2, 1, 11, 11, 2, 3, 11, 3, 4, 11, 4, 5, 11, 5, 6, 11, 6, 7, 11, 7, 8, 11, 8, 9, 11, 9, 10, 11, 10, 1 };
-
+		unsigned int indices[60] = { 11, 2, 1, 11, 3, 2, 11, 4, 3, 11, 5, 4, 11, 6, 5, 11, 7, 6, 11, 8, 7, 11, 9, 8, 11, 10, 9, 11, 1, 10, 0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7, 0, 7, 8, 0, 8, 9, 0, 9, 10, 0, 10, 1 };
 
 		m_indexCountStar = ARRAYSIZE(indices);
 
@@ -487,6 +492,10 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		indexBufferDataStar.SysMemPitch = 0;
 		indexBufferDataStar.SysMemSlicePitch = 0;
 		CD3D11_BUFFER_DESC indexBufferDescStar(sizeof(indices), D3D11_BIND_INDEX_BUFFER);
+		indexBufferDescStar.Usage = D3D11_USAGE_IMMUTABLE;
+		indexBufferDescStar.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		indexBufferDescStar.ByteWidth = sizeof(unsigned int) * 60;
+		
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreateBuffer(
 				&indexBufferDescStar,
@@ -499,10 +508,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 	// Once the cube is loaded, the object is ready to be rendered.
 	//createCubeTask.then([this]() {m_loadingComplete = true; });
-
-	CreateStarTask.then([this]() {
-		m_loadingComplete = true;
-	});
+	m_loadingComplete = true;
 
 }
 

@@ -3,14 +3,14 @@
 struct INPUT_VERTEX
 {
 	float4 coordinate : POSITION;
-	float4 color : COLOR;
+	float4 color : COLOR0;
 	float3 norm : NORMALS;
 };
 
 struct OUTPUT_VERTEX
 {
 	float4 projectedCoordinate : SV_POSITION;
-	float4 colorOut : COLOR;
+	float4 colorOut : COLOR0;
 	float4 normOut : NORMALS;
 };
 
