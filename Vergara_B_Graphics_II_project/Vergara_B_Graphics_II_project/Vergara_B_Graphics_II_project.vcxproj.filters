@@ -93,5 +93,11 @@
     <FxCompile Include="Star_PixelShader.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
+    <FxCompile Include="Ground_PixelShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
+    <FxCompile Include="Ground_VertexShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

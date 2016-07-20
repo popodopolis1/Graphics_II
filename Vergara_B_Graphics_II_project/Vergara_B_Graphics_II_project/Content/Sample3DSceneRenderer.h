@@ -73,6 +73,19 @@ namespace Vergara_B_Graphics_II_project
 		ModelViewProjectionConstantBuffer	m_constantBufferDataStar;
 		uint32	m_indexCountStar;
 
+
+		// Direct3D resources for Ground geometry.
+		Microsoft::WRL::ComPtr<ID3D11InputLayout>	m_inputLayoutGround;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_vertexBufferGround;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_indexBufferGround;
+		Microsoft::WRL::ComPtr<ID3D11VertexShader>	m_vertexShaderGround;
+		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShaderGround;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBufferGround;
+
+		// System resources for Ground geometry.
+		ModelViewProjectionConstantBuffer	m_constantBufferDataGround;
+		uint32	m_indexCountGround;
+
 	};
 }
 

@@ -25,6 +25,7 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	XMStoreFloat4x4(&camera, XMMatrixLookAtRH(eye, at, up));
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
+	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 }
 
 // Initializes view parameters when the window size changes.
@@ -62,6 +63,8 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	XMStoreFloat4x4(&m_constantBufferDataStar.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+
+	XMStoreFloat4x4(&m_constantBufferDataGround.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
 	
@@ -138,6 +141,7 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 	/*Be sure to inverse the camera & Transpose because they don't use pragma pack row major in shaders*/
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
 	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
 
 	mouse_move = false;/*Reset*/
 }
@@ -146,8 +150,9 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 void Sample3DSceneRenderer::Rotate(float radians)
 {
 	// Prepare to pass the updated model matrix to the shader
-	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(0)));
 	XMStoreFloat4x4(&m_constantBufferDataStar.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
+	XMStoreFloat4x4(&m_constantBufferDataGround.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
 }
 
 void Sample3DSceneRenderer::StartTracking()
@@ -206,9 +211,11 @@ void Sample3DSceneRenderer::Render()
 	context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
 
 	// Draw the objects.
-	//context->DrawIndexed(m_indexCount, 0, 0);
+	context->DrawIndexed(m_indexCount, 0, 0);
 
 
+	//XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranslation(m_constantBufferDataStar.view._11 - 2.0f, m_constantBufferDataStar.view._21, m_constantBufferDataStar.view._31));
+	
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferStar.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
 
@@ -235,6 +242,35 @@ void Sample3DSceneRenderer::Render()
 
 	// Draw the objects.
 	context->DrawIndexed(m_indexCountStar, 0, 0);
+
+
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferGround.Get(), 0, NULL, &m_constantBufferDataGround, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideGround = sizeof(VertexPositionColor);
+	UINT offsetGround = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferGround.GetAddressOf(), &strideGround, &offsetGround);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferGround.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutGround.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderGround.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferGround.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderGround.Get(), nullptr, 0);
+
+	// Draw the objects.
+	context->DrawIndexed(m_indexCountGround, 0, 0);
+
 }
 
 void Sample3DSceneRenderer::CreateDeviceDependentResources()
@@ -246,6 +282,11 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	auto loadVSTask2 = DX::ReadDataAsync(L"Star_VertexShader.cso");
 	auto loadPSTask2 = DX::ReadDataAsync(L"Star_PixelShader.cso");
 
+	auto loadVSTask3 = DX::ReadDataAsync(L"Ground_VertexShader.cso");
+	auto loadPSTask3 = DX::ReadDataAsync(L"Ground_PixelShader.cso");
+
+
+#pragma region Skybox VS & PS
 	// After the vertex shader file is loaded, create the shader and input layout.
 	auto createVSTask = loadVSTask.then([this](const std::vector<byte>& fileData) {
 		DX::ThrowIfFailed(
@@ -274,6 +315,29 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			);
 	});
 
+	// After the pixel shader file is loaded, create the shader and constant buffer.
+	auto createPSTask = loadPSTask.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreatePixelShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_pixelShader
+			)
+		);
+
+		CD3D11_BUFFER_DESC constantBufferDesc(sizeof(ModelViewProjectionConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&constantBufferDesc,
+				nullptr,
+				&m_constantBuffer
+			)
+		);
+	});
+#pragma endregion
+	
+#pragma region Star VS & PS
 	auto createVSTask2 = loadVSTask2.then([this](const std::vector<byte>& fileData) {
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreateVertexShader(
@@ -302,28 +366,6 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		);
 	});
 
-
-	// After the pixel shader file is loaded, create the shader and constant buffer.
-	auto createPSTask = loadPSTask.then([this](const std::vector<byte>& fileData) {
-		DX::ThrowIfFailed(
-			m_deviceResources->GetD3DDevice()->CreatePixelShader(
-				&fileData[0],
-				fileData.size(),
-				nullptr,
-				&m_pixelShader
-				)
-			);
-
-		CD3D11_BUFFER_DESC constantBufferDesc(sizeof(ModelViewProjectionConstantBuffer) , D3D11_BIND_CONSTANT_BUFFER);
-		DX::ThrowIfFailed(
-			m_deviceResources->GetD3DDevice()->CreateBuffer(
-				&constantBufferDesc,
-				nullptr,
-				&m_constantBuffer
-				)
-			);
-	});
-
 	auto createPSTask2 = loadPSTask2.then([this](const std::vector<byte>& fileData) {
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreatePixelShader(
@@ -343,8 +385,61 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 			)
 		);
 	});
+#pragma endregion
+
+#pragma region Ground VS & PS
+	// After the vertex shader file is loaded, create the shader and input layout.
+	auto createVSTask3 = loadVSTask3.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateVertexShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_vertexShaderGround
+			)
+		);
+
+		static const D3D11_INPUT_ELEMENT_DESC vertexDescGround[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateInputLayout(
+				vertexDescGround,
+				ARRAYSIZE(vertexDescGround),
+				&fileData[0],
+				fileData.size(),
+				&m_inputLayoutGround
+			)
+		);
+	});
+
+	// After the pixel shader file is loaded, create the shader and constant buffer.
+	auto createPSTask3 = loadPSTask3.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreatePixelShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_pixelShaderGround
+			)
+		);
+
+		CD3D11_BUFFER_DESC constantBufferDescGround(sizeof(ModelViewProjectionConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&constantBufferDescGround,
+				nullptr,
+				&m_constantBufferGround
+			)
+		);
+	});
+#pragma endregion
 
 
+#pragma region Create Skybox
 	// Once both shaders are loaded, create the mesh.
 	auto createCubeTask = (createPSTask && createVSTask).then([this] () {
 
@@ -415,7 +510,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 				)
 			);
 	});
+#pragma endregion
 
+#pragma region Create Star
 	auto CreateStarTask = (createPSTask2 && createVSTask2).then([this]() {
 
 		S_VERTEX star[12];
@@ -469,11 +566,6 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		vertexBufferDataStar.SysMemPitch = 0;
 		vertexBufferDataStar.SysMemSlicePitch = 0;
 		CD3D11_BUFFER_DESC vertexBufferDescStar(sizeof(star), D3D11_BIND_VERTEX_BUFFER);
-		vertexBufferDescStar.Usage = D3D11_USAGE_IMMUTABLE;
-		vertexBufferDescStar.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		vertexBufferDescStar.CPUAccessFlags = NULL;
-		vertexBufferDescStar.ByteWidth = sizeof(S_VERTEX) * 12;
-		vertexBufferDescStar.MiscFlags = 0;
 
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreateBuffer(
@@ -492,9 +584,6 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		indexBufferDataStar.SysMemPitch = 0;
 		indexBufferDataStar.SysMemSlicePitch = 0;
 		CD3D11_BUFFER_DESC indexBufferDescStar(sizeof(indices), D3D11_BIND_INDEX_BUFFER);
-		indexBufferDescStar.Usage = D3D11_USAGE_IMMUTABLE;
-		indexBufferDescStar.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		indexBufferDescStar.ByteWidth = sizeof(unsigned int) * 60;
 		
 		DX::ThrowIfFailed(
 			m_deviceResources->GetD3DDevice()->CreateBuffer(
@@ -505,10 +594,80 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		);
 
 	});
+#pragma endregion
+
+#pragma region Create Ground
+	auto CreateGroundTask = (createPSTask3 && createVSTask3).then([this]() {
+
+		// Load mesh vertices. Each vertex has a position and a color.
+		static const VertexPositionColor ground[] =
+		{
+			{ XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0.0f, 0.0f, 0.0f) },
+			{ XMFLOAT3(-0.5f, -0.5f,  0.5f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(-0.5f,  0.5f, -0.5f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+			{ XMFLOAT3(-0.5f,  0.5f,  0.5f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
+			{ XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+			{ XMFLOAT3(0.5f, -0.5f,  0.5f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+			{ XMFLOAT3(0.5f,  0.5f, -0.5f), XMFLOAT3(1.0f, 1.0f, 0.0f) },
+			{ XMFLOAT3(0.5f,  0.5f,  0.5f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+		};
+
+		D3D11_SUBRESOURCE_DATA vertexBufferDataGround = { 0 };
+		vertexBufferDataGround.pSysMem = ground;
+		vertexBufferDataGround.SysMemPitch = 0;
+		vertexBufferDataGround.SysMemSlicePitch = 0;
+		CD3D11_BUFFER_DESC vertexBufferDescGround(sizeof(ground), D3D11_BIND_VERTEX_BUFFER);
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&vertexBufferDescGround,
+				&vertexBufferDataGround,
+				&m_vertexBufferGround
+			)
+		);
+
+		static const unsigned short indices[] =
+		{
+			0,1,2, // -x
+			1,2,3,
+
+			4,5,6, // +x
+			5,7,6,
+
+			0,1,5, // -y
+			0,5,4,
+
+			2,6,7, // +y
+			2,7,3,
+
+			0,4,6, // -z
+			0,6,2,
+
+			1,3,7, // +z
+			1,7,5,
+		};
+
+		m_indexCountGround = ARRAYSIZE(indices);
+
+		D3D11_SUBRESOURCE_DATA indexBufferDataGround = { 0 };
+		indexBufferDataGround.pSysMem = indices;
+		indexBufferDataGround.SysMemPitch = 0;
+		indexBufferDataGround.SysMemSlicePitch = 0;
+		CD3D11_BUFFER_DESC indexBufferDescGround(sizeof(indices), D3D11_BIND_INDEX_BUFFER);
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&indexBufferDescGround,
+				&indexBufferDataGround,
+				&m_indexBufferGround
+			)
+		);
+
+	});
+#pragma endregion
 
 	// Once the cube is loaded, the object is ready to be rendered.
-	//createCubeTask.then([this]() {m_loadingComplete = true; });
-	m_loadingComplete = true;
+	createCubeTask.then([this]() {m_loadingComplete = true; });
 
 }
 
@@ -528,4 +687,11 @@ void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
 	m_vertexShaderStar.Reset();
 	m_pixelShaderStar.Reset();
 	m_constantBufferStar.Reset();
+
+	m_inputLayoutGround.Reset();
+	m_vertexBufferGround.Reset();
+	m_indexBufferGround.Reset();
+	m_vertexShaderGround.Reset();
+	m_pixelShaderGround.Reset();
+	m_constantBufferGround.Reset();
 }
