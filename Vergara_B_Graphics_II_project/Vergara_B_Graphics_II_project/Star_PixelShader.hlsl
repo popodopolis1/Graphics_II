@@ -10,5 +10,6 @@ struct INPUT_PIXEL
 
 float4 main(INPUT_PIXEL fromVS) : SV_TARGET
 {
+	
 	return fromVS.colorOut;
 }

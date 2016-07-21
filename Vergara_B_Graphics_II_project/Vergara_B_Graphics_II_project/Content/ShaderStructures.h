@@ -24,4 +24,18 @@ namespace Vergara_B_Graphics_II_project
 		DirectX::XMFLOAT3 normals;
 	};
 
+	struct N_VERTEX
+	{
+		DirectX::XMFLOAT3 position;
+		DirectX::XMFLOAT3 uvs;
+		DirectX::XMFLOAT3 normals;
+	};
+
+	struct LIGHTING
+	{
+		DirectX::XMFLOAT4 ambient;
+		DirectX::XMFLOAT3 direction;
+		float pad;
+	};
+
 }

@@ -79,6 +79,8 @@
     <Image Include="Assets\StoreLogo.png">
       <Filter>Assets</Filter>
     </Image>
+    <Image Include="checkerboard.dds" />
+    <Image Include="SkyboxOcean.dds" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />

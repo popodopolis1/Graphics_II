@@ -195,6 +195,8 @@
     <Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Image Include="Assets\StoreLogo.png" />
     <Image Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Image Include="checkerboard.dds" />
+    <Image Include="SkyboxOcean.dds" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />

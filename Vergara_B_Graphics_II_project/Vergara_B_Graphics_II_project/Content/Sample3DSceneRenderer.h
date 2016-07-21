@@ -47,6 +47,7 @@ namespace Vergara_B_Graphics_II_project
 		Microsoft::WRL::ComPtr<ID3D11VertexShader>	m_vertexShader;
 		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShader;
 		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBuffer;
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_shaderResourceViewSky;
 
 		// System resources for cube geometry.
 		ModelViewProjectionConstantBuffer	m_constantBufferData;
@@ -58,6 +59,9 @@ namespace Vergara_B_Graphics_II_project
 		bool	m_tracking;
 		
 		XMFLOAT4X4 world, camera, projection;
+
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_lightBuffer;
+		LIGHTING m_lightsBufferData;
 
 		//STAR
 
@@ -81,6 +85,7 @@ namespace Vergara_B_Graphics_II_project
 		Microsoft::WRL::ComPtr<ID3D11VertexShader>	m_vertexShaderGround;
 		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShaderGround;
 		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBufferGround;
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_shaderResourceView;
 
 		// System resources for Ground geometry.
 		ModelViewProjectionConstantBuffer	m_constantBufferDataGround;
