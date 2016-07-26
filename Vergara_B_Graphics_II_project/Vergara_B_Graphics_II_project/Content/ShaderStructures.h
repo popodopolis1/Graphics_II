@@ -35,7 +35,20 @@ namespace Vergara_B_Graphics_II_project
 	{
 		DirectX::XMFLOAT4 ambient;
 		DirectX::XMFLOAT3 direction;
-		float pad;
+		float padding;
+
+		DirectX::XMFLOAT4 color;
+		DirectX::XMFLOAT3 direction2;
+		float lightRadius;
+		DirectX::XMFLOAT3 position;
+		float padding2;
+
+		DirectX::XMFLOAT4 color2;
+		DirectX::XMFLOAT3 direction3;
+		float coneRatio;
+		DirectX::XMFLOAT3 position2;
+		DirectX::XMFLOAT4 cameraPosition;
+		float padding3;
 	};
 
 }

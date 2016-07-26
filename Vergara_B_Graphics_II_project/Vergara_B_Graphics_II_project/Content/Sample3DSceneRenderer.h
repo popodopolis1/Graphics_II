@@ -59,6 +59,9 @@ namespace Vergara_B_Graphics_II_project
 		bool	m_tracking;
 		
 		XMFLOAT4X4 world, camera, projection;
+		XMMATRIX newCamera;
+
+		float spotFlip = 0.0f;
 
 		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_lightBuffer;
 		LIGHTING m_lightsBufferData;

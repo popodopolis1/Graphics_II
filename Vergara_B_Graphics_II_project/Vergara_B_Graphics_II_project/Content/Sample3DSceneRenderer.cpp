@@ -97,17 +97,91 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 		Rotate(radians);
 	}
 
-	if (buttons['Y'])
+#pragma region Dirctional Light Controls
+	if (buttons['N'])
 	{
 		m_lightsBufferData.direction = { m_lightsBufferData.direction.x, m_lightsBufferData.direction.y + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 500, m_lightsBufferData.direction.z };
 	}
-	if (buttons['H'])
+	if (buttons['M'])
 	{
 		m_lightsBufferData.direction = { m_lightsBufferData.direction.x, m_lightsBufferData.direction.y - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) /500, m_lightsBufferData.direction.z };
 	}
+#pragma endregion
+
+#pragma region Point Light Controls
+	if (buttons['I'])
+	{
+		m_lightsBufferData.position = { m_lightsBufferData.position.x, m_lightsBufferData.position.y, m_lightsBufferData.position.z + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100 };
+	}
+	if (buttons['J'])
+	{
+		m_lightsBufferData.position = { m_lightsBufferData.position.x + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100, m_lightsBufferData.position.y, m_lightsBufferData.position.z };
+	}
+	if (buttons['K'])
+	{
+		m_lightsBufferData.position = { m_lightsBufferData.position.x, m_lightsBufferData.position.y, m_lightsBufferData.position.z - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100 };
+	}
+	if (buttons['L'])
+	{
+		m_lightsBufferData.position = { m_lightsBufferData.position.x - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100, m_lightsBufferData.position.y, m_lightsBufferData.position.z };
+	}
+#pragma endregion
+
+#pragma region Spotlight Controls
+	if (spotFlip == 0)
+	{
+		if (buttons['T'])
+		{
+			m_lightsBufferData.position2 = { m_lightsBufferData.position2.x, m_lightsBufferData.position2.y, m_lightsBufferData.position2.z + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100 };
+		}
+		if (buttons['F'])
+		{
+			m_lightsBufferData.position2 = { m_lightsBufferData.position2.x + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100, m_lightsBufferData.position2.y, m_lightsBufferData.position2.z };
+		}
+		if (buttons['G'])
+		{
+			m_lightsBufferData.position2 = { m_lightsBufferData.position2.x, m_lightsBufferData.position2.y, m_lightsBufferData.position2.z - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100 };
+		}
+		if (buttons['H'])
+		{
+			m_lightsBufferData.position2 = { m_lightsBufferData.position2.x - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100, m_lightsBufferData.position2.y, m_lightsBufferData.position2.z };
+		}
+	}
+	else if(spotFlip > 0)
+	{
+		if (buttons['T'])
+		{
+			m_lightsBufferData.direction3 = { m_lightsBufferData.direction3.x, m_lightsBufferData.direction3.y, m_lightsBufferData.direction3.z + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 300 };
+		}
+		if (buttons['F'])
+		{
+			m_lightsBufferData.direction3 = { m_lightsBufferData.direction3.x + (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 300, m_lightsBufferData.direction3.y, m_lightsBufferData.direction3.z };
+		}
+		if (buttons['G'])
+		{
+			m_lightsBufferData.direction3 = { m_lightsBufferData.direction3.x, m_lightsBufferData.direction3.y, m_lightsBufferData.direction3.z - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 300 };
+		}
+		if (buttons['H'])
+		{
+			m_lightsBufferData.direction3 = { m_lightsBufferData.direction3.x - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 300, m_lightsBufferData.direction3.y, m_lightsBufferData.direction3.z };
+		}
+	}
+
+	if (buttons['Q'])
+	{
+		if (spotFlip == 0)
+		{
+			spotFlip += 1;
+		}
+		else
+		{
+			spotFlip == 0.0f;
+		}
+	}
+#pragma endregion
 
 	
-	XMMATRIX newCamera = XMLoadFloat4x4(&camera);
+	newCamera = XMLoadFloat4x4(&camera);
 	
 	if (buttons['W'])
 	{
@@ -195,6 +269,8 @@ void Sample3DSceneRenderer::Render()
 	}
 
 	auto context = m_deviceResources->GetD3DDeviceContext();
+
+	m_lightsBufferData.cameraPosition = { newCamera.r[3].m128_f32[0], newCamera.r[3].m128_f32[1], newCamera.r[3].m128_f32[2], newCamera.r[3].m128_f32[3] };
 
 	context->UpdateSubresource1(m_lightBuffer.Get(), 0, NULL, &m_lightsBufferData, 0, 0, 0);
 
@@ -305,9 +381,10 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	auto loadVSTask3 = DX::ReadDataAsync(L"Ground_VertexShader.cso");
 	auto loadPSTask3 = DX::ReadDataAsync(L"Ground_PixelShader.cso");
 
+	//Multithreading
 	thread ddsThreadS(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"SkyboxOcean.dds", nullptr, m_shaderResourceViewSky.GetAddressOf(), 0);
-
 	thread ddsThreadG(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"checkerboard.dds", nullptr, m_shaderResourceView.GetAddressOf(), 0);
+
 
 #pragma region Skybox VS & PS
 	// After the vertex shader file is loaded, create the shader and input layout.
@@ -714,6 +791,16 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		m_lightsBufferData.direction = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
 
+		m_lightsBufferData.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+		m_lightsBufferData.direction2 = { -1.0f, -0.75f, 0.0f };
+		m_lightsBufferData.position = { 2.5f, 0.5f, 0.0f };
+		m_lightsBufferData.lightRadius = 5.0f;
+
+		m_lightsBufferData.color2 = { 1.0f, 0.0f, 0.0f, 1.0f };
+		m_lightsBufferData.direction3 = { -1.0f, -1.0f, 0.0f };
+		m_lightsBufferData.position2 = { 2.5f, 0.5f, 0.0f };
+		m_lightsBufferData.coneRatio = 0.93f;
+	
 		D3D11_SUBRESOURCE_DATA lightData = { 0 };
 		lightData.pSysMem = &m_lightsBufferData;
 		lightData.SysMemPitch = 0;
@@ -734,8 +821,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	// Once the cube is loaded, the object is ready to be rendered.
 	CreateGroundTask.then([this]() {m_loadingComplete = true; });
 
-	ddsThreadG.detach();
-	ddsThreadS.detach();
+
+	ddsThreadG.join();
+	ddsThreadS.join();
 }
 
 void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
