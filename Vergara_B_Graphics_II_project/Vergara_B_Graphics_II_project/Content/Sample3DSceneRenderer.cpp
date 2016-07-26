@@ -128,7 +128,7 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 #pragma endregion
 
 #pragma region Spotlight Controls
-	if (spotFlip == 0)
+	if (spotFlip == false)
 	{
 		if (buttons['T'])
 		{
@@ -147,7 +147,7 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 			m_lightsBufferData.position2 = { m_lightsBufferData.position2.x - (float)(timer.GetTotalSeconds() * XMConvertToRadians(m_degreesPerSecond)) / 100, m_lightsBufferData.position2.y, m_lightsBufferData.position2.z };
 		}
 	}
-	else if(spotFlip > 0)
+	if(spotFlip == true)
 	{
 		if (buttons['T'])
 		{
@@ -167,15 +167,15 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 		}
 	}
 
-	if (buttons['Q'])
+	if (buttons['Q'] & 0x1)
 	{
-		if (spotFlip == 0)
+		if (spotFlip == false)
 		{
-			spotFlip += 1;
+			spotFlip = true;
 		}
 		else
 		{
-			spotFlip == 0.0f;
+			spotFlip = false;
 		}
 	}
 #pragma endregion
@@ -482,6 +482,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	//Multithreading
 	thread ddsThreadS(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"SkyboxOcean.dds", nullptr, m_shaderResourceViewSky.GetAddressOf(), 0);
 	thread ddsThreadG(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"checkerboard.dds", nullptr, m_shaderResourceView.GetAddressOf(), 0);
+	thread ddsThreadG2(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"Green Marble Tiles.dds", nullptr, m_shaderResourceViewG.GetAddressOf(), 0);
 	
 
 #pragma region Skybox VS & PS
@@ -891,11 +892,11 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		m_lightsBufferData.color = { 1.0f, 0.0f, 1.0f, 1.0f };
 		m_lightsBufferData.direction2 = { -1.0f, -0.75f, 0.0f };
-		m_lightsBufferData.position = { 2.5f, 0.5f, 0.0f };
+		m_lightsBufferData.position = { 2.5f, 2.5f, 0.0f };
 		m_lightsBufferData.lightRadius = 5.0f;
 
 		m_lightsBufferData.color2 = { 1.0f, 0.0f, 0.0f, 1.0f };
-		m_lightsBufferData.direction3 = { -1.0f, -1.0f, 0.0f };
+		m_lightsBufferData.direction3 = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.position2 = { 2.5f, 0.5f, 0.0f };
 		m_lightsBufferData.coneRatio = 0.93f;
 	
@@ -922,6 +923,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 	ddsThreadG.join();
 	ddsThreadS.join();
+	ddsThreadG2.join();
 }
 
 void Sample3DSceneRenderer::ReleaseDeviceDependentResources()

@@ -46,7 +46,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 
 	float3 specularDirection = normalize(cameraPosition.xyz - input.worldPosition.xyz);
 	float3 halfVector = normalize((lightDirection)+specularDirection);
-	float pIntensity = pow(saturate(dot(input.normals, normalize(halfVector))), 10.0f);
+	float pIntensity = pow(saturate(dot(input.normals, normalize(halfVector))), 64.0f);
 	float4 specularResult = color * attenuation * pIntensity;
 
 	float3 lightDirection2 = normalize(position2.xyz - input.worldPosition.xyz);
@@ -59,7 +59,7 @@ float4 main(PixelShaderInput input) : SV_TARGET
 
 	float3 specularDirection2 = normalize(cameraPosition.xyz - input.worldPosition.xyz);
 	float3 halfVector2 = normalize((lightDirection2)+specularDirection2);
-	float sIntensity = pow(saturate(dot(input.normals, normalize(halfVector2))), 50.0f);
+	float sIntensity = pow(saturate(dot(input.normals, normalize(halfVector2))), 64.0f);
 	float4 specularResult2 = color2 * attenuation2 * sIntensity;
 
 	return textureC * saturate(dirResult + pointResult + specularResult + spotlightResult + specularResult2);

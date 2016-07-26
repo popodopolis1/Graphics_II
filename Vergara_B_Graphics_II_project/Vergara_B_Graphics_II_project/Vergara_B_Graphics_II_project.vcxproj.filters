@@ -81,6 +81,7 @@
     </Image>
     <Image Include="checkerboard.dds" />
     <Image Include="SkyboxOcean.dds" />
+    <Image Include="Green Marble Tiles.dds" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest" />

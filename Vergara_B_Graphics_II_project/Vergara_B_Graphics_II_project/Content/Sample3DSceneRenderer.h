@@ -61,7 +61,7 @@ namespace Vergara_B_Graphics_II_project
 		XMFLOAT4X4 world, camera, projection;
 		XMMATRIX newCamera;
 
-		float spotFlip = 0.0f;
+		bool spotFlip = false;
 
 		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_lightBuffer;
 		LIGHTING m_lightsBufferData;
@@ -89,6 +89,7 @@ namespace Vergara_B_Graphics_II_project
 		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShaderGround;
 		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBufferGround;
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_shaderResourceView;
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_shaderResourceViewG;
 
 		// System resources for Ground geometry.
 		ModelViewProjectionConstantBuffer	m_constantBufferDataGround;
