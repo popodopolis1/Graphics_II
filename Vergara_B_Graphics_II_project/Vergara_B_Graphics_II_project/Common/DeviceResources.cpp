@@ -67,6 +67,7 @@ namespace ScreenRotation
 // Constructor for DeviceResources.
 DX::DeviceResources::DeviceResources() :
 	m_screenViewport(),
+	m_screenViewport2(),
 	m_d3dFeatureLevel(D3D_FEATURE_LEVEL_9_1),
 	m_d3dRenderTargetSize(),
 	m_outputSize(),
@@ -413,10 +414,18 @@ void DX::DeviceResources::CreateWindowSizeDependentResources()
 		0.0f,
 		0.0f,
 		m_d3dRenderTargetSize.Width,
-		m_d3dRenderTargetSize.Height
+		m_d3dRenderTargetSize.Height / 2
 		);
 
+	m_screenViewport2 = CD3D11_VIEWPORT(
+		0.0f,
+		m_d3dRenderTargetSize.Height / 2,
+		m_d3dRenderTargetSize.Width,
+		m_d3dRenderTargetSize.Height / 2
+	);
+
 	m_d3dContext->RSSetViewports(1, &m_screenViewport);
+	//m_d3dContext->RSSetViewports(2, &m_screenViewport2);
 
 	// Create a Direct2D target bitmap associated with the
 	// swap chain back buffer and set it as the current target.

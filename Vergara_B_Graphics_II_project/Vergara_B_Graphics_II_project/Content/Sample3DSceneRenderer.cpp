@@ -32,7 +32,7 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 {
 	Size outputSize = m_deviceResources->GetOutputSize();
-	float aspectRatio = outputSize.Width / outputSize.Height;
+	float aspectRatio = (outputSize.Width / outputSize.Height) * 2.0f;
 	float fovAngleY = 70.0f * XM_PI / 180.0f;
 
 	// This is a simple example of change that can be made when the app is in
@@ -262,6 +262,7 @@ void Sample3DSceneRenderer::StopTracking()
 // Renders one frame using the vertex and pixel shaders.
 void Sample3DSceneRenderer::Render()
 {
+
 	// Loading is asynchronous. Only draw geometry after it's loaded.
 	if (!m_loadingComplete)
 	{
@@ -273,6 +274,8 @@ void Sample3DSceneRenderer::Render()
 	m_lightsBufferData.cameraPosition = { newCamera.r[3].m128_f32[0], newCamera.r[3].m128_f32[1], newCamera.r[3].m128_f32[2], newCamera.r[3].m128_f32[3] };
 
 	context->UpdateSubresource1(m_lightBuffer.Get(), 0, NULL, &m_lightsBufferData, 0, 0, 0);
+
+	context->RSSetViewports(1, &m_deviceResources->GetScreenViewport());
 
 #pragma region DrawSkybox
 	// Prepare the constant buffer to send it to the graphics device.
@@ -367,6 +370,101 @@ void Sample3DSceneRenderer::Render()
 	context->DrawIndexed(m_indexCountGround, 0, 0);
 #pragma endregion
 
+	context->RSSetViewports(1, &m_deviceResources->GetScreenViewport2());
+
+#pragma region DrawSkybox
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBuffer.Get(), 0, NULL, &m_constantBufferData, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT stride2 = sizeof(VertexPositionColor);
+	UINT offset2 = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride2, &offset2);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayout.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShader.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBuffer.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
+
+	context->PSSetShaderResources(0, 1, m_shaderResourceViewSky.GetAddressOf());
+
+	// Draw the objects.
+	context->DrawIndexed(m_indexCount, 0, 0);
+#pragma endregion
+
+#pragma region DrawStar	
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferStar.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideStar2 = sizeof(S_VERTEX);
+	UINT offsetStar2 = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferStar.GetAddressOf(), &strideStar2, &offsetStar2);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferStar.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutStar.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderStar.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferStar.GetAddressOf(), nullptr, nullptr);
+
+	context->PSSetConstantBuffers1(0, 1, m_lightBuffer.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderStar.Get(), nullptr, 0);
+
+	// Draw the objects.
+	context->DrawIndexed(m_indexCountStar, 0, 0);
+#pragma endregion
+
+#pragma region DrawGround
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferGround.Get(), 0, NULL, &m_constantBufferDataGround, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideGround2 = sizeof(N_VERTEX);
+	UINT offsetGround2 = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferGround.GetAddressOf(), &strideGround2, &offsetGround2);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferGround.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutGround.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderGround.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferGround.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderGround.Get(), nullptr, 0);
+
+	context->PSSetShaderResources(0, 1, m_shaderResourceView.GetAddressOf());
+
+	// Draw the objects.
+	context->DrawIndexed(m_indexCountGround, 0, 0);
+#pragma endregion
+	
 }
 
 void Sample3DSceneRenderer::CreateDeviceDependentResources()
@@ -384,7 +482,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	//Multithreading
 	thread ddsThreadS(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"SkyboxOcean.dds", nullptr, m_shaderResourceViewSky.GetAddressOf(), 0);
 	thread ddsThreadG(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"checkerboard.dds", nullptr, m_shaderResourceView.GetAddressOf(), 0);
-
+	
 
 #pragma region Skybox VS & PS
 	// After the vertex shader file is loaded, create the shader and input layout.
