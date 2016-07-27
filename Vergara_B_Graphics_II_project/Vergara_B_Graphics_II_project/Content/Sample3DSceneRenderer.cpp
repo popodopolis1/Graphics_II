@@ -19,13 +19,21 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
 
+	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
 	static const XMVECTORF32 eye = { 0.0f, 0.0f, -2.5f, 0.0f };
+	static const XMVECTORF32 eye2 = { 0.0f, 5.0f, -10.5f, 0.0f };
+
 	static const XMVECTORF32 at = { 0.0f, 0.1f, 0.0f, 0.0f };
+	static const XMVECTORF32 at2 = { 0.0f, 0.1f, 0.0f, 0.0f };
+
 	static const XMVECTORF32 up = { 0.0f, 1.0f, 0.0f, 0.0f };
+
 	XMStoreFloat4x4(&camera, XMMatrixLookAtRH(eye, at, up));
+	XMStoreFloat4x4(&camera2, XMMatrixLookAtRH(eye2, at2, up));
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
+
 }
 
 // Initializes view parameters when the window size changes.
@@ -65,8 +73,6 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	XMStoreFloat4x4(&m_constantBufferDataStar.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	XMStoreFloat4x4(&m_constantBufferDataGround.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
-
-	// Eye is at (0,0.7,1.5), looking at point (0,-0.1,0) with the up-vector along the y-axis.
 	
 }
 
@@ -180,27 +186,31 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 	}
 #pragma endregion
 
-	
 	newCamera = XMLoadFloat4x4(&camera);
+	newCamera2 = XMLoadFloat4x4(&camera2);
 	
 	if (buttons['W'])
 	{
 		newCamera.r[3] = newCamera.r[3] + newCamera.r[2] * -timer.GetElapsedSeconds() * 5.0;
+		newCamera2.r[3] = newCamera2.r[3] + newCamera2.r[2] * -timer.GetElapsedSeconds() * 5.0;
 	}
 	
 	if (a_down)
 	{
 		newCamera.r[3] = newCamera.r[3] + newCamera.r[0] * -timer.GetElapsedSeconds() *5.0;
+		newCamera2.r[3] = newCamera2.r[3] + newCamera2.r[0] * -timer.GetElapsedSeconds() *5.0;
 	}
 	
 	if (s_down)
 	{
 		newCamera.r[3] = newCamera.r[3] + newCamera.r[2] * timer.GetElapsedSeconds() * 5.0;
+		newCamera2.r[3] = newCamera2.r[3] + newCamera2.r[2] * timer.GetElapsedSeconds() * 5.0;
 	}
 	
 	if (d_down)
 	{
 		newCamera.r[3] = newCamera.r[3] + newCamera.r[0] * timer.GetElapsedSeconds() * 5.0;
+		newCamera2.r[3] = newCamera2.r[3] + newCamera2.r[0] * timer.GetElapsedSeconds() * 5.0;
 	}
 	
 	Windows::UI::Input::PointerPoint^ point = nullptr;
@@ -217,15 +227,21 @@ void Sample3DSceneRenderer::Update(DX::StepTimer const& timer)
 			newCamera.r[3] = XMLoadFloat4(&XMFLOAT4(0, 0, 0, 1));
 			newCamera = XMMatrixRotationX(-diffy*0.01f) * newCamera * XMMatrixRotationY(-diffx*0.01f);
 			newCamera.r[3] = pos;
+
+			XMVECTOR pos2 = newCamera2.r[3];
+			newCamera2.r[3] = XMLoadFloat4(&XMFLOAT4(0, 0, 0, 1));
+			newCamera2 = XMMatrixRotationX(-diffy*0.01f) * newCamera2 * XMMatrixRotationY(-diffx*0.01f);
+			newCamera2.r[3] = pos2;
 		}
 	}
 	
 	XMStoreFloat4x4(&camera, newCamera);
+	XMStoreFloat4x4(&camera2, newCamera2);
 	
 	/*Be sure to inverse the camera & Transpose because they don't use pragma pack row major in shaders*/
-	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
-	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
-	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+	
+	
+	
 
 	mouse_move = false;/*Reset*/
 }
@@ -278,6 +294,8 @@ void Sample3DSceneRenderer::Render()
 	context->RSSetViewports(1, &m_deviceResources->GetScreenViewport());
 
 #pragma region DrawSkybox
+	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixTranslation(newCamera.r[3].m128_f32[0], newCamera.r[3].m128_f32[1], newCamera.r[3].m128_f32[2])));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBuffer.Get(), 0, NULL, &m_constantBufferData, 0, 0, 0);
 
@@ -306,11 +324,14 @@ void Sample3DSceneRenderer::Render()
 
 	// Draw the objects.
 	context->DrawIndexed(m_indexCount, 0, 0);
+
+	context->ClearDepthStencilView(m_deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 #pragma endregion
 
 #pragma region DrawStar	
+	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
 	// Prepare the constant buffer to send it to the graphics device.
-	context->UpdateSubresource1(m_constantBufferStar.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
+	context->UpdateSubresource1(m_constantBuffer.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
 
 	// Each vertex is one instance of the VertexPositionColor struct.
 	UINT strideStar = sizeof(S_VERTEX);
@@ -328,7 +349,7 @@ void Sample3DSceneRenderer::Render()
 	context->VSSetShader(m_vertexShaderStar.Get(), nullptr, 0);
 
 	// Send the constant buffer to the graphics device.
-	context->VSSetConstantBuffers1(0, 1, m_constantBufferStar.GetAddressOf(), nullptr, nullptr);
+	context->VSSetConstantBuffers1(0, 1, m_constantBuffer.GetAddressOf(), nullptr, nullptr);
 
 	context->PSSetConstantBuffers1(0, 1, m_lightBuffer.GetAddressOf(), nullptr, nullptr);
 
@@ -340,6 +361,7 @@ void Sample3DSceneRenderer::Render()
 #pragma endregion
 
 #pragma region DrawGround
+	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferGround.Get(), 0, NULL, &m_constantBufferDataGround, 0, 0, 0);
 
@@ -372,7 +394,11 @@ void Sample3DSceneRenderer::Render()
 
 	context->RSSetViewports(1, &m_deviceResources->GetScreenViewport2());
 
+	m_lightsBufferData.cameraPosition = { newCamera2.r[3].m128_f32[0], newCamera2.r[3].m128_f32[1], newCamera2.r[3].m128_f32[2], newCamera2.r[3].m128_f32[3] };
+
 #pragma region DrawSkybox
+	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera2)));
+	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixTranslation(newCamera2.r[3].m128_f32[0], newCamera2.r[3].m128_f32[1], newCamera2.r[3].m128_f32[2])));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBuffer.Get(), 0, NULL, &m_constantBufferData, 0, 0, 0);
 
@@ -401,9 +427,12 @@ void Sample3DSceneRenderer::Render()
 
 	// Draw the objects.
 	context->DrawIndexed(m_indexCount, 0, 0);
+
+	context->ClearDepthStencilView(m_deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 #pragma endregion
 
 #pragma region DrawStar	
+	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera2)));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferStar.Get(), 0, NULL, &m_constantBufferDataStar, 0, 0, 0);
 
@@ -435,6 +464,7 @@ void Sample3DSceneRenderer::Render()
 #pragma endregion
 
 #pragma region DrawGround
+	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera2)));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferGround.Get(), 0, NULL, &m_constantBufferDataGround, 0, 0, 0);
 
@@ -479,7 +509,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	auto loadVSTask3 = DX::ReadDataAsync(L"Ground_VertexShader.cso");
 	auto loadPSTask3 = DX::ReadDataAsync(L"Ground_PixelShader.cso");
 
-	//Multithreading
+	//Multithreading (Joins at the bottom of function)
 	thread ddsThreadS(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"SkyboxOcean.dds", nullptr, m_shaderResourceViewSky.GetAddressOf(), 0);
 	thread ddsThreadG(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"checkerboard.dds", nullptr, m_shaderResourceView.GetAddressOf(), 0);
 	thread ddsThreadG2(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"Green Marble Tiles.dds", nullptr, m_shaderResourceViewG.GetAddressOf(), 0);
@@ -682,23 +712,23 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		// first triangle of this mesh.
 		static const unsigned short cubeIndices [] =
 		{
-			0,2,1, // -x
-			1,2,3,
+			1,2,0, // -x
+			3,2,1,
 
-			4,5,6, // +x
-			5,7,6,
+			6,5,4, // +x
+			6,7,5,
 
-			0,1,5, // -y
-			0,5,4,
+			5,1,0, // -y
+			4,5,0,
 
-			2,6,7, // +y
-			2,7,3,
+			7,6,2, // +y
+			3,7,2,
 
-			0,4,6, // -z
-			0,6,2,
+			6,4,0, // -z
+			2,6,0,
 
-			1,3,7, // +z
-			1,7,5,
+			7,3,1, // +z
+			5,7,1,
 		};
 
 		m_indexCount = ARRAYSIZE(cubeIndices);
@@ -890,7 +920,7 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		m_lightsBufferData.direction = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-		m_lightsBufferData.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+		m_lightsBufferData.color = { 1.0f, 1.0f, 0.0f, 1.0f };
 		m_lightsBufferData.direction2 = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.position = { 2.5f, 2.5f, 0.0f };
 		m_lightsBufferData.lightRadius = 5.0f;
@@ -935,6 +965,7 @@ void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
 	m_constantBuffer.Reset();
 	m_vertexBuffer.Reset();
 	m_indexBuffer.Reset();
+	m_shaderResourceViewSky.Reset();
 
 	m_lightBuffer.Reset();
 
@@ -951,4 +982,7 @@ void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
 	m_vertexShaderGround.Reset();
 	m_pixelShaderGround.Reset();
 	m_constantBufferGround.Reset();
+
+	m_shaderResourceView.Reset();
+	m_shaderResourceViewG.Reset();
 }

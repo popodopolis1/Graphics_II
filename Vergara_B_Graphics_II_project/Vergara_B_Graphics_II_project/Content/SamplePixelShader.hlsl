@@ -5,8 +5,14 @@ struct PixelShaderInput
 	float3 color : COLOR0;
 };
 
+TextureCube baseTexture : register(t0);
+
+SamplerState filters[1] : register(s0);
+
 // A pass-through function for the (interpolated) color data.
 float4 main(PixelShaderInput input) : SV_TARGET
 {
-	return float4(input.color, 1.0f);
+	float4 colors = baseTexture.Sample(filters[0], input.color.xyz);
+
+	return colors;
 }

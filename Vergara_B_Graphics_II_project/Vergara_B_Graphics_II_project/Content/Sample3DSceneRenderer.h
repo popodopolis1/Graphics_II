@@ -58,8 +58,8 @@ namespace Vergara_B_Graphics_II_project
 		float	m_degreesPerSecond;
 		bool	m_tracking;
 		
-		XMFLOAT4X4 world, camera, projection;
-		XMMATRIX newCamera;
+		XMFLOAT4X4 world, camera, projection, camera2;
+		XMMATRIX newCamera, newCamera2;
 
 		bool spotFlip = false;
 
