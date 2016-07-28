@@ -33,7 +33,104 @@ Sample3DSceneRenderer::Sample3DSceneRenderer(const std::shared_ptr<DX::DeviceRes
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 	XMStoreFloat4x4(&m_constantBufferDataStar.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 	XMStoreFloat4x4(&m_constantBufferDataGround.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.view, XMMatrixTranspose(XMMatrixInverse(0, XMMatrixLookAtRH(eye, at, up))));
 
+}
+
+vector<OBJECT> obj;
+vector<XMFLOAT3> verts;
+vector<XMFLOAT2> uvs;
+vector<XMFLOAT3> normals;
+vector<unsigned int> ind;
+
+bool OBJLoader(const char* path, vector<XMFLOAT3> &m_verts, vector<XMFLOAT2> &m_uvs, vector<XMFLOAT3> &m_normals, vector<unsigned int> &m_indices)
+{
+
+	vector<unsigned int> vertInd, uvInd, normInd;
+	vector<XMFLOAT3> temp_verts;
+	vector<XMFLOAT2> temp_uvs;
+	vector<XMFLOAT3> temp_normals;
+
+	FILE* file;
+
+	errno_t out = fopen_s(&file, path, "r");
+
+	char header[128];
+
+	if (out != 0)
+	{
+		printf("File Unable to Open!\n");
+		return false;
+	}
+
+
+	while (1)
+	{
+		int result = fscanf_s(file, "%s", header, _countof(header));
+		if (result == EOF)
+			break;
+
+		if (strcmp(header, "v") == 0)
+		{
+			XMFLOAT3 vTex;
+			fscanf_s(file, "%f %f %f \n", &vTex.x, &vTex.y, &vTex.z);
+			temp_verts.push_back(vTex);
+		}
+		else if (strcmp(header, "vt") == 0)
+		{
+			XMFLOAT2 uv;
+			fscanf_s(file, "%f %f\n", &uv.x, &uv.y);
+			temp_uvs.push_back(uv);
+		}
+		else if (strcmp(header, "vn") == 0)
+		{
+			XMFLOAT3 normal;
+			fscanf_s(file, "%f %f %f \n", &normal.x, &normal.y, &normal.z);
+			temp_normals.push_back(normal);
+		}
+		else if (strcmp(header, "f") == 0)
+		{
+			//string v1, v2, v3;
+			unsigned int vIndex[3], uvIndex[3], nIndex[3];
+			int matched = fscanf_s(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vIndex[0], &uvIndex[0], &nIndex[0],
+				&vIndex[1], &uvIndex[1], &nIndex[1], &vIndex[2], &uvIndex[2], &nIndex[2]);
+			if (matched != 9)
+			{
+				printf("Can't Load File");
+				return false;
+			}
+			vertInd.push_back(vIndex[0]);
+			vertInd.push_back(vIndex[1]);
+			vertInd.push_back(vIndex[2]);
+			uvInd.push_back(uvIndex[0]);
+			uvInd.push_back(uvIndex[1]);
+			uvInd.push_back(uvIndex[2]);
+			normInd.push_back(nIndex[0]);
+			normInd.push_back(nIndex[1]);
+			normInd.push_back(nIndex[2]);
+		}
+	}
+
+	for (unsigned int i = 0; i < vertInd.size(); ++i)
+	{
+		unsigned int vIndex = vertInd[i];
+		XMFLOAT3 v = temp_verts[vIndex - 1];
+		m_verts.push_back(v);
+		m_indices.push_back(i);
+	}
+	for (unsigned int a = 0; a < uvInd.size(); ++a)
+	{
+		unsigned int uvIndex = uvInd[a];
+		XMFLOAT2 uv = temp_uvs[uvIndex - 1];
+		m_uvs.push_back(uv);
+	}
+	for (unsigned int l = 0; l < normInd.size(); ++l)
+	{
+		unsigned int nIndex = normInd[l];
+		XMFLOAT3 n = temp_normals[nIndex - 1];
+		m_normals.push_back(n);
+	}
+	return true;
 }
 
 // Initializes view parameters when the window size changes.
@@ -73,6 +170,8 @@ void Sample3DSceneRenderer::CreateWindowSizeDependentResources()
 	XMStoreFloat4x4(&m_constantBufferDataStar.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 
 	XMStoreFloat4x4(&m_constantBufferDataGround.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
+
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.projection, XMMatrixTranspose(perspectiveMatrix * orientationMatrix));
 	
 }
 
@@ -253,6 +352,7 @@ void Sample3DSceneRenderer::Rotate(float radians)
 	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(XMMatrixRotationY(0)));
 	XMStoreFloat4x4(&m_constantBufferDataStar.model, XMMatrixTranspose(XMMatrixRotationY(radians)));
 	XMStoreFloat4x4(&m_constantBufferDataGround.model, XMMatrixTranspose(XMMatrixRotationY(0)));
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.model, XMMatrixTranspose(XMMatrixRotationY(0)));
 }
 
 void Sample3DSceneRenderer::StartTracking()
@@ -392,6 +492,37 @@ void Sample3DSceneRenderer::Render()
 	context->DrawIndexed(m_indexCountGround, 0, 0);
 #pragma endregion
 
+#pragma region DrawOBJ	
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
+	//XMStoreFloat4x4(&m_constantBufferDataOBJ.model, XMMatrixTranspose(pyramid));
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferOBJ.Get(), 0, NULL, &m_constantBufferDataOBJ, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideOBJ = sizeof(OBJECT);
+	UINT offsetOBJ = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferOBJ.GetAddressOf(), &strideOBJ, &offsetOBJ);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferOBJ.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutOBJ.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderOBJ.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferOBJ.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderOBJ.Get(), nullptr, 0);
+
+	// Draw the objects.
+	context->DrawIndexed(ind.size() , 0, 0);
+#pragma endregion
+
 	context->RSSetViewports(1, &m_deviceResources->GetScreenViewport2());
 
 	m_lightsBufferData.cameraPosition = { newCamera2.r[3].m128_f32[0], newCamera2.r[3].m128_f32[1], newCamera2.r[3].m128_f32[2], newCamera2.r[3].m128_f32[3] };
@@ -494,6 +625,36 @@ void Sample3DSceneRenderer::Render()
 	// Draw the objects.
 	context->DrawIndexed(m_indexCountGround, 0, 0);
 #pragma endregion
+
+#pragma region DrawOBJ	
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera2)));
+	// Prepare the constant buffer to send it to the graphics device.
+	context->UpdateSubresource1(m_constantBufferOBJ.Get(), 0, NULL, &m_constantBufferDataOBJ, 0, 0, 0);
+
+	// Each vertex is one instance of the VertexPositionColor struct.
+	UINT strideOBJ2 = sizeof(OBJECT);
+	UINT offsetOBJ2 = 0;
+	context->IASetVertexBuffers(0, 1, m_vertexBufferOBJ.GetAddressOf(), &strideOBJ2, &offsetOBJ2);
+
+	// Each index is one 16-bit unsigned integer (short).
+	context->IASetIndexBuffer(m_indexBufferOBJ.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	context->IASetInputLayout(m_inputLayoutOBJ.Get());
+
+	// Attach our vertex shader.
+	context->VSSetShader(m_vertexShaderOBJ.Get(), nullptr, 0);
+
+	// Send the constant buffer to the graphics device.
+	context->VSSetConstantBuffers1(0, 1, m_constantBufferOBJ.GetAddressOf(), nullptr, nullptr);
+
+	// Attach our pixel shader.
+	context->PSSetShader(m_pixelShaderOBJ.Get(), nullptr, 0);
+
+	// Draw the objects.
+	context->DrawIndexed(ind.size(), 0, 0);
+#pragma endregion
 	
 }
 
@@ -508,6 +669,9 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 	auto loadVSTask3 = DX::ReadDataAsync(L"Ground_VertexShader.cso");
 	auto loadPSTask3 = DX::ReadDataAsync(L"Ground_PixelShader.cso");
+
+	auto loadVSTask4 = DX::ReadDataAsync(L"OBJ_VertexShader.cso");
+	auto loadPSTask4 = DX::ReadDataAsync(L"OBJ_PixelShader.cso");
 
 	//Multithreading (Joins at the bottom of function)
 	thread ddsThreadS(CreateDDSTextureFromFile, m_deviceResources->GetD3DDevice(), L"SkyboxOcean.dds", nullptr, m_shaderResourceViewSky.GetAddressOf(), 0);
@@ -632,8 +796,8 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		static const D3D11_INPUT_ELEMENT_DESC vertexDescGround[] =
 		{
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "TEXTURE_COORDINATES", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXTURE_COORDINATES", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			{ "WPOS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		};
@@ -671,6 +835,57 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 
 		
 
+	});
+#pragma endregion
+
+#pragma region OBJ VS & PS
+	auto createVSTask4 = loadVSTask4.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateVertexShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_vertexShaderOBJ
+			)
+		);
+
+		static const D3D11_INPUT_ELEMENT_DESC vertexDesc2[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXTURE_COORDINATES", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMALS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "WPOS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateInputLayout(
+				vertexDesc2,
+				ARRAYSIZE(vertexDesc2),
+				&fileData[0],
+				fileData.size(),
+				&m_inputLayoutOBJ
+			)
+		);
+	});
+
+	auto createPSTask4 = loadPSTask4.then([this](const std::vector<byte>& fileData) {
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreatePixelShader(
+				&fileData[0],
+				fileData.size(),
+				nullptr,
+				&m_pixelShaderOBJ
+			)
+		);
+
+		CD3D11_BUFFER_DESC constantBufferDescOBJ(sizeof(ModelViewProjectionConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&constantBufferDescOBJ,
+				nullptr,
+				&m_constantBufferOBJ
+			)
+		);
 	});
 #pragma endregion
 
@@ -917,14 +1132,17 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 	auto CreateLightingTask = (createPSTask && createVSTask).then([this]() {
 
 		// Load mesh vertices. Each vertex has a position and a color.
+		//Directional Light
 		m_lightsBufferData.direction = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.ambient = { 1.0f, 1.0f, 1.0f, 1.0f };
 
+		//Point Light
 		m_lightsBufferData.color = { 1.0f, 1.0f, 0.0f, 1.0f };
 		m_lightsBufferData.direction2 = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.position = { 2.5f, 2.5f, 0.0f };
 		m_lightsBufferData.lightRadius = 5.0f;
 
+		//Spotlight
 		m_lightsBufferData.color2 = { 1.0f, 0.0f, 0.0f, 1.0f };
 		m_lightsBufferData.direction3 = { -1.0f, -0.75f, 0.0f };
 		m_lightsBufferData.position2 = { 2.5f, 0.5f, 0.0f };
@@ -943,6 +1161,91 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 				&m_lightBuffer
 			)
 		);
+
+	});
+#pragma endregion
+
+#pragma region Create Object
+	auto CreateOBJTask = (CreateLightingTask).then([this]()
+	{
+
+		bool object = OBJLoader("Assets\\pyramid.mesh", verts, uvs, normals, ind);
+		
+		obj.resize(verts.size());
+
+		for (unsigned int i = 0; i < verts.size(); ++i)
+		{
+			obj[i].vertices.x = verts[i].x;
+			obj[i].vertices.y = verts[i].y;
+			obj[i].vertices.z = verts[i].z;
+			obj[i].uv.x = uvs[i].x;
+			obj[i].uv.y = uvs[i].y;
+			obj[i].normals.x = normals[i].x;
+			obj[i].normals.y = normals[i].y;
+			obj[i].normals.z = normals[i].z;
+		}
+
+		D3D11_BUFFER_DESC OBJVertexBufferDesc = {};
+		OBJVertexBufferDesc.ByteWidth = sizeof(OBJECT) * obj.size();
+		OBJVertexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		OBJVertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		OBJVertexBufferDesc.CPUAccessFlags = 0;
+		OBJVertexBufferDesc.MiscFlags = 0;
+		OBJVertexBufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA OBJVertData = { 0 };
+		OBJVertData.pSysMem = obj.data();
+		OBJVertData.SysMemPitch = 0;
+		OBJVertData.SysMemSlicePitch = 0;
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&OBJVertexBufferDesc,
+				&OBJVertData,
+				&m_vertexBufferOBJ
+			)
+		);
+
+		m_indexCountOBJ = ind.size();
+
+		D3D11_BUFFER_DESC OBJIndexBufferDesc = {};
+		OBJIndexBufferDesc.ByteWidth = sizeof(unsigned int) * ind.size();
+		OBJIndexBufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		OBJIndexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		OBJIndexBufferDesc.CPUAccessFlags = 0;
+		OBJIndexBufferDesc.MiscFlags = 0;
+		OBJIndexBufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA OBJIndData = { 0 };
+		OBJIndData.pSysMem = ind.data();
+		OBJIndData.SysMemPitch = 0;
+		OBJIndData.SysMemSlicePitch = 0;
+
+		DX::ThrowIfFailed(
+			m_deviceResources->GetD3DDevice()->CreateBuffer(
+				&OBJIndexBufferDesc,
+				&OBJIndData,
+				&m_indexBufferOBJ
+			)
+		);
+
+
+		//D3D11_BUFFER_DESC OBJConstBufferDesc = {};
+		//OBJConstBufferDesc.ByteWidth = sizeof(OBJECT);
+		//OBJConstBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		//OBJConstBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		//OBJConstBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		//OBJConstBufferDesc.StructureByteStride = sizeof(unsigned int);
+		//
+		//DX::ThrowIfFailed(
+		//	m_deviceResources->GetD3DDevice()->CreateBuffer(
+		//		&OBJConstBufferDesc,
+		//		NULL,
+		//		&m_indexBufferOBJ
+		//	)
+		//);
+
+		pyramid = XMMatrixTranslation(3, 0, 3);
 
 	});
 #pragma endregion
@@ -982,6 +1285,10 @@ void Sample3DSceneRenderer::ReleaseDeviceDependentResources()
 	m_vertexShaderGround.Reset();
 	m_pixelShaderGround.Reset();
 	m_constantBufferGround.Reset();
+
+	m_vertexBufferOBJ.Reset();
+	m_indexBufferOBJ.Reset();
+	m_constantBufferOBJ.Reset();
 
 	m_shaderResourceView.Reset();
 	m_shaderResourceViewG.Reset();

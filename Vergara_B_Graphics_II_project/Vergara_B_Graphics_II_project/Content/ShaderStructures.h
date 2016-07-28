@@ -51,4 +51,11 @@ namespace Vergara_B_Graphics_II_project
 		float padding3;
 	};
 
+	struct OBJECT
+	{
+		DirectX::XMFLOAT3 vertices;
+		DirectX::XMFLOAT2 uv;
+		DirectX::XMFLOAT3 normals;
+	};
+
 }

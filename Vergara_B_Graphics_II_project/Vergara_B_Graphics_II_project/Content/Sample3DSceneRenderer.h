@@ -95,6 +95,20 @@ namespace Vergara_B_Graphics_II_project
 		ModelViewProjectionConstantBuffer	m_constantBufferDataGround;
 		uint32	m_indexCountGround;
 
+
+		// Direct3D resources for OBJ geometry
+		Microsoft::WRL::ComPtr<ID3D11InputLayout>	m_inputLayoutOBJ;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_vertexBufferOBJ;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_indexBufferOBJ;
+		Microsoft::WRL::ComPtr<ID3D11VertexShader>	m_vertexShaderOBJ;
+		Microsoft::WRL::ComPtr<ID3D11PixelShader>	m_pixelShaderOBJ;
+		Microsoft::WRL::ComPtr<ID3D11Buffer>		m_constantBufferOBJ;
+
+		ModelViewProjectionConstantBuffer	m_constantBufferDataOBJ;
+		uint32	m_indexCountOBJ;
+
+		XMMATRIX pyramid;
+
 	};
 }
 

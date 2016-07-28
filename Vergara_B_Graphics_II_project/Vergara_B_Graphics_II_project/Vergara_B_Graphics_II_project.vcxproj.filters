@@ -88,6 +88,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Vergara_B_Graphics_II_project_TemporaryKey.pfx" />
+    <None Include="Assets\pyramid.mesh">
+      <Filter>Assets</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Star_VertexShader.hlsl">
@@ -100,6 +103,12 @@
       <Filter>Content</Filter>
     </FxCompile>
     <FxCompile Include="Ground_VertexShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
+    <FxCompile Include="OBJ_VertexShader.hlsl">
+      <Filter>Content</Filter>
+    </FxCompile>
+    <FxCompile Include="OBJ_PixelShader.hlsl">
       <Filter>Content</Filter>
     </FxCompile>
   </ItemGroup>
