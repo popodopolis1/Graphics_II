@@ -107,6 +107,9 @@ namespace Vergara_B_Graphics_II_project
 		ModelViewProjectionConstantBuffer	m_constantBufferDataOBJ;
 		uint32	m_indexCountOBJ;
 
+		Microsoft::WRL::ComPtr<ID3D11RasterizerState> CCWcull;
+		Microsoft::WRL::ComPtr<ID3D11RasterizerState> CWcull;
+
 		XMMATRIX pyramid;
 
 	};

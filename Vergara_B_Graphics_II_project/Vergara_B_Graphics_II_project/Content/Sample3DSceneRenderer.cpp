@@ -422,6 +422,7 @@ void Sample3DSceneRenderer::Render()
 
 	context->PSSetShaderResources(0, 1, m_shaderResourceViewSky.GetAddressOf());
 
+	context->RSSetState(CWcull.Get());
 	// Draw the objects.
 	context->DrawIndexed(m_indexCount, 0, 0);
 
@@ -494,7 +495,7 @@ void Sample3DSceneRenderer::Render()
 
 #pragma region DrawOBJ	
 	XMStoreFloat4x4(&m_constantBufferDataOBJ.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera)));
-	//XMStoreFloat4x4(&m_constantBufferDataOBJ.model, XMMatrixTranspose(pyramid));
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.model, XMMatrixTranspose(pyramid));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferOBJ.Get(), 0, NULL, &m_constantBufferDataOBJ, 0, 0, 0);
 
@@ -518,6 +519,8 @@ void Sample3DSceneRenderer::Render()
 
 	// Attach our pixel shader.
 	context->PSSetShader(m_pixelShaderOBJ.Get(), nullptr, 0);
+
+	//context->RSSetState(CCWcull.Get());
 
 	// Draw the objects.
 	context->DrawIndexed(ind.size() , 0, 0);
@@ -556,6 +559,7 @@ void Sample3DSceneRenderer::Render()
 
 	context->PSSetShaderResources(0, 1, m_shaderResourceViewSky.GetAddressOf());
 
+	context->RSSetState(CWcull.Get());
 	// Draw the objects.
 	context->DrawIndexed(m_indexCount, 0, 0);
 
@@ -628,6 +632,7 @@ void Sample3DSceneRenderer::Render()
 
 #pragma region DrawOBJ	
 	XMStoreFloat4x4(&m_constantBufferDataOBJ.view, XMMatrixTranspose(XMMatrixInverse(0, newCamera2)));
+	XMStoreFloat4x4(&m_constantBufferDataOBJ.model, XMMatrixTranspose(pyramid));
 	// Prepare the constant buffer to send it to the graphics device.
 	context->UpdateSubresource1(m_constantBufferOBJ.Get(), 0, NULL, &m_constantBufferDataOBJ, 0, 0, 0);
 
@@ -652,6 +657,7 @@ void Sample3DSceneRenderer::Render()
 	// Attach our pixel shader.
 	context->PSSetShader(m_pixelShaderOBJ.Get(), nullptr, 0);
 
+	//context->RSSetState(CCWcull.Get());
 	// Draw the objects.
 	context->DrawIndexed(ind.size(), 0, 0);
 #pragma endregion
@@ -1246,6 +1252,20 @@ void Sample3DSceneRenderer::CreateDeviceDependentResources()
 		//);
 
 		pyramid = XMMatrixTranslation(3, 0, 3);
+
+
+		D3D11_RASTERIZER_DESC cmdesc;
+		ZeroMemory(&cmdesc, sizeof(D3D11_RASTERIZER_DESC));
+
+		cmdesc.FillMode = D3D11_FILL_SOLID;
+		cmdesc.CullMode = D3D11_CULL_BACK;
+
+		cmdesc.FrontCounterClockwise = true;
+
+		DX::ThrowIfFailed(m_deviceResources->GetD3DDevice()->CreateRasterizerState(&cmdesc, &CCWcull));
+
+		cmdesc.FrontCounterClockwise = false;
+		DX::ThrowIfFailed(m_deviceResources->GetD3DDevice()->CreateRasterizerState(&cmdesc, &CWcull));
 
 	});
 #pragma endregion
